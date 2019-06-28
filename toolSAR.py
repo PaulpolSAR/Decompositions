@@ -430,6 +430,85 @@ def VZ_dec(data):
     return  VZdec
 
 
+
+#######################################################################################################
+#######################################################################################################
+#Incoherent decompositions: VZ decomposition, which performs slightly better on small images (size <500*500 pixels)
+# but worse on bigger images.
+    
+#van Zyl, Jakob J. "Application of Cloude's target decomposition theorem to polarimetric imaging radar data."    
+#Radar polarimetry. Vol. 1748. International Society for Optics and Photonics, 1993.
+
+#Input:    -data: The covariance matrices in a m*n*9 format
+#Outputs:  -VZdec: a m*n*3 array. In the third dimension are contained in this order: pv,ps,pd
+#######################################################################################################
+#######################################################################################################
+def VZ_dec_faster(data):
+    
+    [m,n,p]=data.shape
+    matvanzyl=np.zeros(data.shape,dtype=np.complex64)
+    angleodd=np.zeros((m,n),dtype=np.complex64)
+    angleeven=np.zeros((m,n),dtype=np.complex64)
+    lambdaodd=np.zeros((m,n))
+    lambdaeven=np.zeros((m,n))
+
+
+
+    
+    #Initialization of the output matrices
+    VZdec=np.zeros((m,n,3))
+                          
+            
+    Kvan=(data[:,:,0]).real
+    
+    for i in np.arange(0,p):
+        matvanzyl[:,:,i]=data[:,:,i]/Kvan
+            
+    rhovan=matvanzyl[:,:,6]
+    etavan=(matvanzyl[:,:,4]).real
+    zetavan=(matvanzyl[:,:,8]).real
+            
+    deltavan=(zetavan-1)**2+4*((rhovan*np.conjugate(rhovan)).real)
+    lambda1van=(Kvan/2)*(zetavan+1+np.sqrt(deltavan))
+    lambda2van=(Kvan/2)*(zetavan+1-np.sqrt(deltavan))
+    lambdacanop=Kvan*etavan
+    
+    Avan=(zetavan-1+np.sqrt(deltavan))
+    Bvan=(zetavan-1-np.sqrt(deltavan))
+        
+    alphavan=(2*rhovan)/Avan
+    betavan=(2*rhovan)/Bvan
+    
+    qfirst=np.where((alphavan).real>0)
+    qsecond=np.where((alphavan).real<=0)
+
+
+    angleodd[qfirst]=alphavan[qfirst]
+    lambdaodd[qfirst]=lambda1van[qfirst]*((Avan[qfirst]**2)/(Avan[qfirst]**2+4*((rhovan[qfirst]*np.conjugate(rhovan[qfirst])).real)))
+    angleeven[qfirst]=betavan[qfirst]
+    lambdaeven[qfirst]=lambda2van[qfirst]*((Bvan[qfirst]**2)/(Bvan[qfirst]**2+4*((rhovan[qfirst]*np.conjugate(rhovan[qfirst])).real)))
+
+
+    angleeven[qsecond]=alphavan[qsecond]
+    lambdaeven[qsecond]=lambda1van[qsecond]*((Avan[qsecond]**2)/(Avan[qsecond]**2+4*((rhovan[qsecond]*np.conjugate(rhovan[qsecond])).real)))
+    angleodd[qsecond]=betavan[qsecond]
+    lambdaodd[qsecond]=lambda2van[qsecond]*((Bvan[qsecond]**2)/(Bvan[qsecond]**2+4*((rhovan[qsecond]*np.conjugate(rhovan[qsecond])).real)))
+
+            
+            
+    pcanopvz=lambdacanop
+    poddvz=lambdaodd*(1+(angleodd*np.conjugate(angleodd)).real)
+    pevenvz=lambdaeven*(1+(angleeven*np.conjugate(angleeven)).real)
+            
+    VZdec[:,:,0]= pcanopvz
+    VZdec[:,:,1]= poddvz
+    VZdec[:,:,2]= pevenvz
+
+            
+    return  VZdec
+
+
+
 #######################################################################################################
 #######################################################################################################
 #This function makes a RGB plot, and creates a linear colorscale for each component.
